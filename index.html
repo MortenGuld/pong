@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Pong — Single Page</title>
+    <style>
+      :root {
+        --bg0: #070a12;
+        --bg1: #0b1430;
+        --fg: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.66);
+        --glass: rgba(255, 255, 255, 0.08);
+        --glass-2: rgba(255, 255, 255, 0.12);
+        --stroke: rgba(255, 255, 255, 0.16);
+        --accent: #7dd3fc;
+        --danger: #fb7185;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+        --radius: 18px;
+        --crt-green: rgba(0, 255, 170, 0.95);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        min-height: 100vh;
+        min-height: 100svh;
+        min-height: 100dvh;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          "Apple Color Emoji",
+          "Segoe UI Emoji";
+        color: var(--fg);
+        background: radial-gradient(1200px 800px at 15% 20%, rgba(125, 211, 252, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 80% 70%, rgba(244, 114, 182, 0.14), transparent 60%),
+          linear-gradient(180deg, var(--bg1), var(--bg0));
+        overflow: hidden;
+      }
+
+      body.retro {
+        --accent: rgba(0, 255, 170, 0.95);
+        --bg0: #02040a;
+        --bg1: #030915;
+        --stroke: rgba(0, 255, 170, 0.12);
+        --glass: rgba(0, 255, 170, 0.06);
+        --glass-2: rgba(0, 255, 170, 0.10);
+        font-family:
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Monaco,
+          Consolas,
+          "Liberation Mono",
+          "Courier New",
+          monospace;
+      }
+
+      .bg-sheen {
+        position: fixed;
+        inset: -20vmax;
+        background: conic-gradient(
+          from 90deg,
+          rgba(125, 211, 252, 0.0),
+          rgba(125, 211, 252, 0.10),
+          rgba(244, 114, 182, 0.08),
+          rgba(125, 211, 252, 0.0)
+        );
+        filter: blur(50px);
+        opacity: 0.9;
+        animation: drift 14s linear infinite;
+        pointer-events: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .bg-sheen {
+          animation: none;
+        }
+        body.retro main::before {
+          animation: none;
+        }
+      }
+
+      @keyframes drift {
+        0% {
+          transform: translate3d(-3%, -2%, 0) rotate(0deg);
+        }
+        100% {
+          transform: translate3d(3%, 2%, 0) rotate(360deg);
+        }
+      }
+
+      @keyframes crtFlicker {
+        0% {
+          opacity: 0.26;
+        }
+        6% {
+          opacity: 0.32;
+        }
+        7% {
+          opacity: 0.22;
+        }
+        10% {
+          opacity: 0.30;
+        }
+        55% {
+          opacity: 0.28;
+        }
+        56% {
+          opacity: 0.20;
+        }
+        58% {
+          opacity: 0.30;
+        }
+        100% {
+          opacity: 0.26;
+        }
+      }
+
+      .shell {
+        position: relative;
+        min-height: 100vh;
+        min-height: 100svh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+          calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+      }
+
+      .card {
+        width: min(980px, 96vw);
+        height: min(620px, calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+        height: min(620px, calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+        height: min(620px, calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+        border: 1px solid var(--stroke);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      body.retro .card {
+        background: linear-gradient(180deg, rgba(0, 255, 170, 0.07), rgba(0, 0, 0, 0.12));
+        box-shadow:
+          0 30px 90px rgba(0, 0, 0, 0.72),
+          0 0 0 1px rgba(0, 255, 170, 0.08) inset;
+      }
+
+      header {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+      }
+
+      .title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        white-space: nowrap;
+      }
+
+      .title h1 {
+        font-size: 16px;
+        margin: 0;
+        letter-spacing: 0.2px;
+        font-weight: 650;
+      }
+
+      body.retro .title h1 {
+        letter-spacing: 1.3px;
+        text-shadow:
+          0 0 12px rgba(0, 255, 170, 0.22),
+          0 0 1px rgba(0, 255, 170, 0.35);
+      }
+
+      .title .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        color: var(--fg);
+        font-size: 12px;
+        user-select: none;
+      }
+
+      .pill select,
+      .pill input[type="range"] {
+        accent-color: var(--accent);
+      }
+
+      .pill select {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: var(--fg);
+        border-radius: 10px;
+        padding: 4px 8px;
+        outline: none;
+      }
+
+      .pill button {
+        appearance: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--fg);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .pill button:hover {
+        border-color: rgba(255, 255, 255, 0.26);
+        background: rgba(255, 255, 255, 0.10);
+      }
+
+      .pill button:active {
+        transform: translateY(1px);
+      }
+
+      .pill button.primary {
+        background: rgba(125, 211, 252, 0.18);
+        border-color: rgba(125, 211, 252, 0.32);
+      }
+
+      .pill button.danger {
+        background: rgba(251, 113, 133, 0.16);
+        border-color: rgba(251, 113, 133, 0.28);
+      }
+
+      .pill.disabled {
+        opacity: 0.45;
+      }
+
+      main {
+        position: relative;
+      }
+
+      /* CRT overlay */
+      main::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.035) 0px,
+          rgba(255, 255, 255, 0.018) 1px,
+          rgba(0, 0, 0, 0) 3px,
+          rgba(0, 0, 0, 0) 6px
+        );
+        opacity: 0.20;
+        mix-blend-mode: overlay;
+      }
+
+      main::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        pointer-events: none;
+        background:
+          radial-gradient(800px 500px at 50% 40%, rgba(0, 255, 170, 0.08), transparent 60%),
+          radial-gradient(900px 650px at 50% 55%, rgba(0, 0, 0, 0.0), rgba(0, 0, 0, 0.34) 70%, rgba(0, 0, 0, 0.62));
+        opacity: 1;
+      }
+
+      body.retro main::before {
+        opacity: 0.28;
+        animation: crtFlicker 7.6s linear infinite;
+      }
+
+      body.retro main {
+        filter: saturate(1.1) contrast(1.05);
+      }
+
+      body.retro canvas {
+        filter: drop-shadow(0 0 18px rgba(0, 255, 170, 0.08));
+        image-rendering: pixelated;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.24));
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: 16px;
+      }
+
+      .scorebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .score {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.6px;
+      }
+
+      .score .big {
+        font-size: 28px;
+        font-weight: 750;
+      }
+
+      body.retro .score .big {
+        text-shadow:
+          0 0 12px rgba(0, 255, 170, 0.20),
+          0 0 1px rgba(0, 255, 170, 0.28);
+      }
+
+      .score .label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .status {
+        justify-self: center;
+        text-align: center;
+        max-width: 66ch;
+        padding: 10px 14px;
+        border-radius: 16px;
+        background: rgba(0, 0, 0, 0.24);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        color: rgba(255, 255, 255, 0.88);
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      .status.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .status kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+          monospace;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      footer {
+        padding: 12px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .footer-hint {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .footer-hint span {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.24);
+      }
+
+      @media (max-width: 720px) {
+        header {
+          align-items: flex-start;
+          gap: 10px;
+          flex-direction: column;
+        }
+        .controls {
+          justify-content: flex-start;
+        }
+        .title .hint {
+          display: none;
+        }
+        .footer-hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="retro">
+    <div class="bg-sheen" aria-hidden="true"></div>
+    <div class="shell">
+      <div class="card" role="application" aria-label="Pong game">
+        <header>
+          <div class="title">
+            <h1>Pong</h1>
+            <div class="hint">Traditional rules, 90s CRT vibe</div>
+          </div>
+          <div class="controls" aria-label="Game controls">
+            <div class="pill" title="Game mode">
+              <span>Mode</span>
+              <select id="mode">
+                <option value="cpu">1P vs CPU</option>
+                <option value="local">2P local</option>
+              </select>
+            </div>
+            <div class="pill" title="CPU difficulty (only in 1P mode)">
+              <span>CPU</span>
+              <input id="cpu" type="range" min="1" max="10" value="4" />
+            </div>
+            <div class="pill" title="Audio (enables simple beeps)">
+              <button id="sound" class="primary" type="button">Sound: Off</button>
+            </div>
+            <div class="pill" title="Background music (retro synth loop)">
+              <button id="music" class="primary" type="button">Music: Off</button>
+            </div>
+            <div class="pill">
+              <button id="pause" type="button">Pause</button>
+              <button id="reset" class="danger" type="button">Reset</button>
+            </div>
+          </div>
+        </header>
+        <main>
+          <canvas id="game" width="980" height="520" aria-label="Game canvas"></canvas>
+          <div class="overlay">
+            <div class="scorebar" aria-hidden="true">
+              <div class="score">
+                <div class="big" id="scoreL">0</div>
+                <div class="label">Left</div>
+              </div>
+              <div class="score">
+                <div class="label">Right</div>
+                <div class="big" id="scoreR">0</div>
+              </div>
+            </div>
+            <div></div>
+            <div id="status" class="status"></div>
+          </div>
+        </main>
+        <footer>
+          <div class="footer-hint" aria-hidden="true">
+            <span><span class="dot"></span> Left: <kbd>W</kbd>/<kbd>S</kbd> or drag</span>
+            <span><span class="dot"></span> Right: <kbd>↑</kbd>/<kbd>↓</kbd> (2P) or CPU</span>
+            <span><span class="dot"></span> Serve: <kbd>Space</kbd> · Pause: <kbd>P</kbd></span>
+          </div>
+          <div>Tip: Toggle Music for a 90s loop. On touch, drag on your side to move.</div>
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d", { alpha: false });
+
+        const scoreLNode = document.getElementById("scoreL");
+        const scoreRNode = document.getElementById("scoreR");
+        const statusNode = document.getElementById("status");
+
+        const modeNode = document.getElementById("mode");
+        const cpuNode = document.getElementById("cpu");
+        const soundNode = document.getElementById("sound");
+        const musicNode = document.getElementById("music");
+        const pauseNode = document.getElementById("pause");
+        const resetNode = document.getElementById("reset");
+
+        const state = {
+          mode: "cpu",
+          cpuDifficulty: 6,
+          soundEnabled: false,
+          musicEnabled: false,
+          paused: false,
+          awaitingServe: true,
+          gameOver: false,
+          targetScore: 11,
+          lastT: performance.now(),
+        };
+
+        const input = {
+          keys: new Set(),
+          pointers: new Map(), // pointerId -> { side, y }
+        };
+
+        const world = {
+          w: 980,
+          h: 520,
+          midLineDash: 10,
+          midLineGap: 12,
+          paddle: {
+            w: 14,
+            h: 110,
+            inset: 22,
+            speed: 520,
+          },
+          ball: {
+            r: 8,
+            speed: 400,
+            maxSpeed: 900,
+            accel: 1.03,
+          },
+        };
+
+        const game = {
+          scoreL: 0,
+          scoreR: 0,
+          left: { y: world.h / 2, vy: 0 },
+          right: { y: world.h / 2, vy: 0 },
+          ball: { x: world.w / 2, y: world.h / 2, vx: 0, vy: 0, speed: world.ball.speed },
+          lastHit: "none",
+        };
+
+        function clamp(v, min, max) {
+          return Math.max(min, Math.min(max, v));
+        }
+
+        function sign(v) {
+          return v < 0 ? -1 : 1;
+        }
+
+        function rand(min, max) {
+          return min + Math.random() * (max - min);
+        }
+
+        function setStatus(html, show = true) {
+          statusNode.innerHTML = html;
+          statusNode.classList.toggle("show", Boolean(show));
+        }
+
+        function updateScoreUI() {
+          scoreLNode.textContent = String(game.scoreL);
+          scoreRNode.textContent = String(game.scoreR);
+        }
+
+        // --- Sound (optional, only after user interaction) ---
+        let audioCtx = null;
+        let sfxGain = null;
+        let musicGain = null;
+        let musicFilter = null;
+        let musicCompressor = null;
+        const music = {
+          running: false,
+          timer: null,
+          nextTime: 0,
+          step: 0,
+        };
+
+        function ensureAudio() {
+          if (!state.soundEnabled && !state.musicEnabled) return null;
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            sfxGain = audioCtx.createGain();
+            musicGain = audioCtx.createGain();
+            musicFilter = audioCtx.createBiquadFilter();
+            musicCompressor = audioCtx.createDynamicsCompressor();
+
+            sfxGain.gain.value = 0.6;
+            musicGain.gain.value = 0.0;
+            musicFilter.type = "lowpass";
+            musicFilter.frequency.value = 1600;
+            musicFilter.Q.value = 0.6;
+
+            musicFilter.connect(musicCompressor);
+            musicCompressor.connect(musicGain);
+
+            sfxGain.connect(audioCtx.destination);
+            musicGain.connect(audioCtx.destination);
+          }
+          if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+          return audioCtx;
+        }
+
+        function beep(freq, durationMs, gain = 0.06) {
+          if (!state.soundEnabled) return;
+          const ac = ensureAudio();
+          if (!ac) return;
+          const osc = ac.createOscillator();
+          const g = ac.createGain();
+          osc.type = "square";
+          osc.frequency.value = freq;
+          g.gain.value = gain;
+          osc.connect(g);
+          g.connect(sfxGain || ac.destination);
+          const t0 = ac.currentTime;
+          const t1 = t0 + durationMs / 1000;
+          g.gain.setTargetAtTime(gain, t0, 0.005);
+          g.gain.setTargetAtTime(0.0001, t0 + 0.02, 0.03);
+          osc.start(t0);
+          osc.stop(t1);
+        }
+
+        function midiToFreq(midi) {
+          return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        function scheduleMusicNote(ac, t0, midi, duration, { type = "square", gain = 0.06, detune = 0 } = {}) {
+          const osc = ac.createOscillator();
+          const g = ac.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(midiToFreq(midi), t0);
+          osc.detune.setValueAtTime(detune, t0);
+
+          const a = 0.006;
+          const d = Math.max(0.02, duration * 0.35);
+          const s = gain * 0.55;
+          const r = 0.06;
+
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(gain, t0 + a);
+          g.gain.linearRampToValueAtTime(s, t0 + a + d);
+          g.gain.setTargetAtTime(0.0001, t0 + duration, r);
+
+          osc.connect(g);
+          g.connect(musicFilter || (musicGain || ac.destination));
+
+          osc.start(t0);
+          osc.stop(t0 + duration + 0.12);
+        }
+
+	        function startMusic() {
+	          if (!state.musicEnabled) return;
+	          const ac = ensureAudio();
+	          if (!ac) return;
+	          if (music.running) return;
+
+          // Retro-ish loop: simple minor-key lead + bass pulse.
+          const tempo = 128;
+          const stepDur = (60 / tempo) / 2; // 8th notes
+          const root = 57; // A3
+          const lead = [
+            0, 3, 7, 10, 7, 3, 0, 3,
+            0, 3, 7, 12, 10, 7, 3, 0,
+            0, 3, 7, 10, 7, 3, 0, 3,
+            0, 3, 5, 7, 5, 3, 0, -2,
+          ];
+          const bass = [
+            0, 0, 0, 0, 7, 7, 7, 7,
+            5, 5, 5, 5, 3, 3, 3, 3,
+          ];
+
+	          const now = ac.currentTime;
+	          music.nextTime = now + 0.05;
+	          music.step = 0;
+	          music.running = true;
+
+          // Fade in (avoid clicks).
+          if (musicGain) {
+            musicGain.gain.cancelScheduledValues(now);
+            musicGain.gain.setValueAtTime(musicGain.gain.value, now);
+            musicGain.gain.linearRampToValueAtTime(0.14, now + 0.18);
+          }
+
+          function scheduler() {
+            if (!state.musicEnabled) return;
+            const ac2 = ensureAudio();
+            if (!ac2) return;
+
+            const lookahead = 0.12;
+            while (music.nextTime < ac2.currentTime + lookahead) {
+              const i = music.step;
+
+              const leadMidi = root + 12 + lead[i % lead.length];
+              const bassMidi = root - 12 + bass[i % bass.length];
+
+              // Lead: subtle detune for old-soundcard vibe.
+              scheduleMusicNote(ac2, music.nextTime, leadMidi, stepDur * 0.95, {
+                type: "square",
+                gain: 0.045,
+                detune: (i % 2 === 0 ? -7 : 7),
+              });
+
+              // Bass: triangle pulse on every other step.
+              if (i % 2 === 0) {
+                scheduleMusicNote(ac2, music.nextTime, bassMidi, stepDur * 0.98, {
+                  type: "triangle",
+                  gain: 0.05,
+                });
+              }
+
+              music.nextTime += stepDur;
+              music.step = (music.step + 1) >>> 0;
+            }
+          }
+
+          music.timer = window.setInterval(scheduler, 25);
+        }
+
+	        function stopMusic() {
+	          music.running = false;
+	          if (music.timer) window.clearInterval(music.timer);
+	          music.timer = null;
+	          music.nextTime = 0;
+	          if (audioCtx && musicGain) {
+	            const now = audioCtx.currentTime;
+	            musicGain.gain.cancelScheduledValues(now);
+	            musicGain.gain.setValueAtTime(musicGain.gain.value, now);
+	            musicGain.gain.linearRampToValueAtTime(0.0, now + 0.12);
+	          }
+	        }
+
+        // --- Resize & DPR ---
+	        function resizeCanvas() {
+	          const rect = canvas.getBoundingClientRect();
+	          const isRetro = document.body.classList.contains("retro");
+	          const dpr = isRetro ? 1 : clamp(window.devicePixelRatio || 1, 1, 2.5);
+	          canvas.width = Math.max(1, Math.round(rect.width * dpr));
+	          canvas.height = Math.max(1, Math.round(rect.height * dpr));
+	          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+	          world.w = rect.width;
+          world.h = rect.height;
+
+          // Keep paddles in bounds after resize.
+          game.left.y = clamp(game.left.y, world.paddle.h / 2, world.h - world.paddle.h / 2);
+          game.right.y = clamp(game.right.y, world.paddle.h / 2, world.h - world.paddle.h / 2);
+          game.ball.x = clamp(game.ball.x, world.ball.r, world.w - world.ball.r);
+          game.ball.y = clamp(game.ball.y, world.ball.r, world.h - world.ball.r);
+        }
+
+        const ro = new ResizeObserver(resizeCanvas);
+        ro.observe(canvas);
+        window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 50), { passive: true });
+
+        // --- Game mechanics ---
+        function resetMatch({ keepMode = true } = {}) {
+          game.scoreL = 0;
+          game.scoreR = 0;
+          state.paused = false;
+          state.gameOver = false;
+          state.awaitingServe = true;
+          game.left.y = world.h / 2;
+          game.right.y = world.h / 2;
+          resetBall("none");
+          updateScoreUI();
+          if (!keepMode) {
+            state.mode = modeNode.value;
+            state.cpuDifficulty = Number(cpuNode.value);
+          }
+          pauseNode.textContent = "Pause";
+          showServePrompt();
+        }
+
+        function resetBall(lastWinner) {
+          game.ball.x = world.w / 2;
+          game.ball.y = world.h / 2;
+          game.ball.speed = world.ball.speed;
+          game.lastHit = "none";
+
+          const dir = lastWinner === "left" ? 1 : lastWinner === "right" ? -1 : Math.random() < 0.5 ? -1 : 1;
+          const angle = rand(-0.45, 0.45); // radians-ish feel; keep mostly horizontal
+          game.ball.vx = Math.cos(angle) * game.ball.speed * dir;
+          game.ball.vy = Math.sin(angle) * game.ball.speed;
+        }
+
+        function showServePrompt() {
+          const isTouch = matchMedia("(pointer: coarse)").matches;
+          const serve = isTouch ? "Tap or drag to serve" : "Press <kbd>Space</kbd> to serve";
+          const pause = isTouch ? "Pause: button" : "Pause: <kbd>P</kbd>";
+          const modeHint = state.mode === "cpu" ? "You vs CPU" : "2P local";
+          setStatus(`${modeHint}. ${serve}. ${pause}.`, true);
+        }
+
+        function showWin(winner) {
+          const txt = winner === "left" ? "Left wins!" : "Right wins!";
+          const again = matchMedia("(pointer: coarse)").matches ? "Use Reset to play again." : "Press <kbd>Space</kbd> to play again.";
+          setStatus(`<strong>${txt}</strong> ${again}`, true);
+        }
+
+        function setPaused(p) {
+          state.paused = p;
+          pauseNode.textContent = p ? "Resume" : "Pause";
+          if (state.gameOver) return;
+          if (p) setStatus("Paused. Press <kbd>P</kbd> or Resume.", true);
+          else if (state.awaitingServe) showServePrompt();
+          else setStatus("", false);
+        }
+
+      function startRally() {
+          if (state.paused) return;
+          if (state.gameOver) {
+            resetMatch({ keepMode: true });
+          }
+          if (state.awaitingServe) {
+            state.awaitingServe = false;
+            setStatus("", false);
+            // Small nudge to prevent perfectly flat starts.
+            game.ball.vy += rand(-40, 40);
+            beep(740, 45, 0.05);
+          }
+        }
+
+        function scorePoint(winner) {
+          if (winner === "left") game.scoreL += 1;
+          else game.scoreR += 1;
+          updateScoreUI();
+          beep(winner === "left" ? 620 : 420, 70, 0.06);
+
+          if (game.scoreL >= state.targetScore || game.scoreR >= state.targetScore) {
+            state.gameOver = true;
+            state.awaitingServe = true;
+            showWin(game.scoreL > game.scoreR ? "left" : "right");
+            return;
+          }
+
+          state.awaitingServe = true;
+          resetBall(winner);
+          showServePrompt();
+        }
+
+        function rectCircleHit(rect, cx, cy, r) {
+          const closestX = clamp(cx, rect.x, rect.x + rect.w);
+          const closestY = clamp(cy, rect.y, rect.y + rect.h);
+          const dx = cx - closestX;
+          const dy = cy - closestY;
+          return dx * dx + dy * dy <= r * r;
+        }
+
+        function applyPaddleBounce(side, paddleY) {
+          // Traditional Pong-style: reflect X, add "spin" from hit offset.
+          const offset = clamp((game.ball.y - paddleY) / (world.paddle.h * 0.5), -1, 1);
+          const targetSpeed = clamp(game.ball.speed * world.ball.accel, world.ball.speed, world.ball.maxSpeed);
+          game.ball.speed = targetSpeed;
+
+          // Keep mostly horizontal but allow skillful angles.
+          const angle = offset * 0.95; // ~[-0.95, 0.95]
+          const dir = side === "left" ? 1 : -1;
+          game.ball.vx = Math.cos(angle) * targetSpeed * dir;
+          game.ball.vy = Math.sin(angle) * targetSpeed + offset * 120;
+          game.lastHit = side;
+          beep(880, 28, 0.035);
+        }
+
+        function updatePaddles(dt) {
+          const targetVyL = (() => {
+            const up = input.keys.has("KeyW");
+            const down = input.keys.has("KeyS");
+            if (up && !down) return -world.paddle.speed;
+            if (down && !up) return world.paddle.speed;
+            return 0;
+          })();
+
+          const targetVyR = (() => {
+            if (state.mode === "cpu") return 0;
+            const up = input.keys.has("ArrowUp");
+            const down = input.keys.has("ArrowDown");
+            if (up && !down) return -world.paddle.speed;
+            if (down && !up) return world.paddle.speed;
+            return 0;
+          })();
+
+          game.left.vy = targetVyL;
+          game.right.vy = targetVyR;
+
+          game.left.y = clamp(game.left.y + game.left.vy * dt, world.paddle.h / 2, world.h - world.paddle.h / 2);
+          game.right.y = clamp(
+            game.right.y + game.right.vy * dt,
+            world.paddle.h / 2,
+            world.h - world.paddle.h / 2,
+          );
+
+          // Pointer control: drag on your side to move.
+          for (const p of input.pointers.values()) {
+            if (p.side === "left") {
+              game.left.y = clamp(p.y, world.paddle.h / 2, world.h - world.paddle.h / 2);
+            } else if (p.side === "right") {
+              if (state.mode === "local") {
+                game.right.y = clamp(p.y, world.paddle.h / 2, world.h - world.paddle.h / 2);
+              }
+            }
+          }
+        }
+
+        function updateCpu(dt) {
+          if (state.mode !== "cpu") return;
+          const difficulty = clamp(state.cpuDifficulty, 1, 10);
+
+          const reaction = 0.14 + (10 - difficulty) * 0.018; // seconds
+          const maxSpeed = 250 + difficulty * 42; // px/s
+          const jitter = (10 - difficulty) * 10;
+
+          // Only track when ball is headed toward CPU.
+          const headingToCpu = game.ball.vx > 0;
+          let targetY = world.h / 2;
+          if (headingToCpu && !state.awaitingServe) {
+            // Simple prediction: estimate time to reach right paddle plane.
+            const paddleX = world.w - world.paddle.inset - world.paddle.w;
+            const dx = paddleX - game.ball.x;
+            const t = dx / Math.max(60, game.ball.vx);
+            const predicted = game.ball.y + game.ball.vy * t;
+            // Add intentional imperfection, especially when ball is far away.
+            const farFactor = clamp(dx / (world.w * 0.55), 0, 1);
+            targetY = predicted + rand(-jitter, jitter) + rand(-1, 1) * jitter * farFactor;
+          } else {
+            targetY = world.h / 2 + rand(-jitter * 0.5, jitter * 0.5);
+          }
+
+          // Smooth movement with capped speed.
+          const error = targetY - game.right.y;
+          const desired = clamp(error / Math.max(0.001, reaction), -maxSpeed, maxSpeed);
+          const easing = 0.86; // extra lag to keep it beatable
+          game.right.y = clamp(
+            game.right.y + desired * dt * easing,
+            world.paddle.h / 2,
+            world.h - world.paddle.h / 2,
+          );
+        }
+
+        function updateBall(dt) {
+          if (state.awaitingServe) return;
+
+          game.ball.x += game.ball.vx * dt;
+          game.ball.y += game.ball.vy * dt;
+
+          // Wall bounce
+          if (game.ball.y - world.ball.r <= 0) {
+            game.ball.y = world.ball.r;
+            game.ball.vy = Math.abs(game.ball.vy);
+            beep(520, 18, 0.02);
+          } else if (game.ball.y + world.ball.r >= world.h) {
+            game.ball.y = world.h - world.ball.r;
+            game.ball.vy = -Math.abs(game.ball.vy);
+            beep(520, 18, 0.02);
+          }
+
+          // Paddle rectangles
+          const leftRect = {
+            x: world.paddle.inset,
+            y: game.left.y - world.paddle.h / 2,
+            w: world.paddle.w,
+            h: world.paddle.h,
+          };
+          const rightRect = {
+            x: world.w - world.paddle.inset - world.paddle.w,
+            y: game.right.y - world.paddle.h / 2,
+            w: world.paddle.w,
+            h: world.paddle.h,
+          };
+
+          // Paddle collision (prevent double hits by checking direction)
+          if (game.ball.vx < 0 && rectCircleHit(leftRect, game.ball.x, game.ball.y, world.ball.r)) {
+            game.ball.x = leftRect.x + leftRect.w + world.ball.r;
+            applyPaddleBounce("left", game.left.y);
+          } else if (game.ball.vx > 0 && rectCircleHit(rightRect, game.ball.x, game.ball.y, world.ball.r)) {
+            game.ball.x = rightRect.x - world.ball.r;
+            applyPaddleBounce("right", game.right.y);
+          }
+
+          // Score
+          if (game.ball.x + world.ball.r < 0) {
+            scorePoint("right");
+          } else if (game.ball.x - world.ball.r > world.w) {
+            scorePoint("left");
+          }
+        }
+
+        // --- Rendering ---
+        function draw() {
+          // Clear
+          ctx.fillStyle = "#070a12";
+          ctx.fillRect(0, 0, world.w, world.h);
+
+          // Subtle vignette
+          const grad = ctx.createRadialGradient(world.w * 0.5, world.h * 0.45, world.h * 0.2, world.w * 0.5, world.h * 0.5, world.h * 0.9);
+          grad.addColorStop(0, "rgba(255,255,255,0.06)");
+          grad.addColorStop(1, "rgba(0,0,0,0.10)");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, world.w, world.h);
+
+          // Mid dashed line
+          ctx.save();
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = "rgba(255,255,255,0.38)";
+          const x = world.w * 0.5 - 2;
+          for (let y = 18; y < world.h - 18; y += world.midLineDash + world.midLineGap) {
+            ctx.fillRect(x, y, 4, world.midLineDash);
+          }
+          ctx.restore();
+
+          // Paddles
+          ctx.fillStyle = "rgba(255,255,255,0.86)";
+          const pxL = world.paddle.inset;
+          const pyL = game.left.y - world.paddle.h / 2;
+          const pxR = world.w - world.paddle.inset - world.paddle.w;
+          const pyR = game.right.y - world.paddle.h / 2;
+          roundRect(ctx, pxL, pyL, world.paddle.w, world.paddle.h, 8);
+          roundRect(ctx, pxR, pyR, world.paddle.w, world.paddle.h, 8);
+
+          // Ball (with a tiny glow)
+          ctx.save();
+          ctx.shadowColor = "rgba(125, 211, 252, 0.45)";
+          ctx.shadowBlur = 14;
+          ctx.fillStyle = "rgba(255,255,255,0.95)";
+          ctx.beginPath();
+          ctx.arc(game.ball.x, game.ball.y, world.ball.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          // Serve indicator
+          if (state.awaitingServe && !state.gameOver) {
+            ctx.save();
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = "rgba(125, 211, 252, 1)";
+            ctx.fillRect(world.w * 0.5 - 30, world.h * 0.5 - 2, 60, 4);
+            ctx.restore();
+          }
+        }
+
+        function roundRect(ctx2d, x, y, w, h, r) {
+          const rr = clamp(r, 0, Math.min(w, h) / 2);
+          ctx2d.beginPath();
+          ctx2d.moveTo(x + rr, y);
+          ctx2d.arcTo(x + w, y, x + w, y + h, rr);
+          ctx2d.arcTo(x + w, y + h, x, y + h, rr);
+          ctx2d.arcTo(x, y + h, x, y, rr);
+          ctx2d.arcTo(x, y, x + w, y, rr);
+          ctx2d.closePath();
+          ctx2d.fill();
+        }
+
+        // --- Loop ---
+        function tick(t) {
+          const dt = clamp((t - state.lastT) / 1000, 0, 1 / 20);
+          state.lastT = t;
+
+          if (!state.paused && !state.gameOver) {
+            updatePaddles(dt);
+            updateCpu(dt);
+            updateBall(dt);
+          }
+
+          draw();
+          requestAnimationFrame(tick);
+        }
+
+        // --- Events ---
+        function onKeyDown(e) {
+          if (e.code === "Space") {
+            e.preventDefault();
+            if (!state.paused) startRally();
+            return;
+          }
+          if (e.code === "KeyP") {
+            e.preventDefault();
+            setPaused(!state.paused);
+            return;
+          }
+          input.keys.add(e.code);
+        }
+
+        function onKeyUp(e) {
+          input.keys.delete(e.code);
+        }
+
+        function pointerSideFromClientX(clientX) {
+          const rect = canvas.getBoundingClientRect();
+          const x = clientX - rect.left;
+          return x < rect.width / 2 ? "left" : "right";
+        }
+
+        function pointerYFromClientY(clientY) {
+          const rect = canvas.getBoundingClientRect();
+          return clamp(clientY - rect.top, 0, rect.height);
+        }
+
+        function onPointerDown(e) {
+          canvas.setPointerCapture(e.pointerId);
+          const side = pointerSideFromClientX(e.clientX);
+          const y = pointerYFromClientY(e.clientY);
+          input.pointers.set(e.pointerId, { side, y });
+          if (state.awaitingServe && !state.paused) startRally();
+        }
+
+        function onPointerMove(e) {
+          if (!input.pointers.has(e.pointerId)) return;
+          const { side } = input.pointers.get(e.pointerId);
+          const y = pointerYFromClientY(e.clientY);
+          input.pointers.set(e.pointerId, { side, y });
+        }
+
+        function onPointerUp(e) {
+          input.pointers.delete(e.pointerId);
+        }
+
+        function syncModeUI() {
+          const cpuPill = cpuNode.closest(".pill");
+          const enabled = state.mode === "cpu";
+          cpuNode.disabled = !enabled;
+          cpuPill?.classList.toggle("disabled", !enabled);
+        }
+
+        function bindUI() {
+          modeNode.addEventListener("change", () => {
+            state.mode = modeNode.value;
+            resetMatch({ keepMode: true });
+            syncModeUI();
+            showServePrompt();
+          });
+          cpuNode.addEventListener("input", () => {
+            state.cpuDifficulty = Number(cpuNode.value);
+          });
+          soundNode.addEventListener("click", () => {
+            state.soundEnabled = !state.soundEnabled;
+            soundNode.textContent = `Sound: ${state.soundEnabled ? "On" : "Off"}`;
+            if (state.soundEnabled) beep(660, 55, 0.045);
+          });
+          musicNode.addEventListener("click", () => {
+            state.musicEnabled = !state.musicEnabled;
+            musicNode.textContent = `Music: ${state.musicEnabled ? "On" : "Off"}`;
+            if (state.musicEnabled) startMusic();
+            else stopMusic();
+          });
+          pauseNode.addEventListener("click", () => setPaused(!state.paused));
+          resetNode.addEventListener("click", () => resetMatch({ keepMode: true }));
+        }
+
+	        function init() {
+          state.mode = modeNode.value;
+          state.cpuDifficulty = Number(cpuNode.value);
+          updateScoreUI();
+          resizeCanvas();
+          syncModeUI();
+
+	          window.addEventListener("keydown", onKeyDown);
+	          window.addEventListener("keyup", onKeyUp);
+	          document.addEventListener("visibilitychange", () => {
+	            if (!state.musicEnabled) return;
+	            if (document.hidden) stopMusic();
+	            else startMusic();
+	          });
+	          canvas.addEventListener("pointerdown", onPointerDown);
+	          canvas.addEventListener("pointermove", onPointerMove);
+	          canvas.addEventListener("pointerup", onPointerUp);
+          canvas.addEventListener("pointercancel", onPointerUp);
+          canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+          bindUI();
+          resetMatch({ keepMode: true });
+          requestAnimationFrame(tick);
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
