@@ -29,4 +29,3 @@ Traditional Pong gameplay in a single `index.html` with a modern glass UI and op
 ## Notes
 
 - This game is VIBE coded — ~30 minutes effort, tops.
-- Replace `assets/screenshot.svg` with your own screenshot if you want a real capture in the README.
