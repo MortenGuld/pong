@@ -6,8 +6,10 @@ Traditional Pong gameplay in a single `index.html` with a modern glass UI and op
 
 ## Play
 
-- Open `index.html` in your browser.
+- **Run locally:** open `index.html` in your browser.
   - For best results on some browsers, serve it locally: `python3 -m http.server` then open `http://localhost:8000`.
+- **Play online:** you can also try it directly from github here:
+  - https://rawcdn.githack.com/MortenGuld/pong/d39fc46310444cf836d7616f994622b93325eda0/index.html
 
 ## Controls
 
