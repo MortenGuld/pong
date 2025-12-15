@@ -2,7 +2,7 @@
 
 Traditional Pong gameplay in a single `index.html` with a modern glass UI and optional retro synth loop.
 
-![Game screenshot](assets/screenshot.svg)
+![Game screenshot](assets/pong.png)
 
 ## Play
 
